@@ -11,35 +11,64 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 
-function loadLocal(rel) {
-  const resolved = require.resolve(rel);
-  delete require.cache[resolved];
-  return require(resolved);
+try {
+  delete require.cache[require.resolve("./config.js")];
+} catch {
+  /* not cached yet */
 }
+try {
+  delete require.cache[require.resolve("./discipline.js")];
+} catch {
+  /* not cached yet */
+}
+try {
+  delete require.cache[require.resolve("./tools.js")];
+} catch {
+  /* not cached yet */
+}
+try {
+  delete require.cache[require.resolve("./guardrails.js")];
+} catch {
+  /* not cached yet */
+}
+const cfg = require("./config.js");
+const discipline = require("./discipline.js");
+const tools = require("./tools.js");
+const guardrails = require("./guardrails.js");
 
-const cfg = loadLocal("./config.js");
-const discipline = loadLocal("./discipline.js");
-const tools = loadLocal("./tools.js");
-const guardrails = loadLocal("./guardrails.js");
-
-function loadUserProfileBlock() {
-  const file = path.join(
-    os.homedir(),
-    ".pi-desktop",
-    "plugins",
-    "installed",
-    "cn.star.user-profile",
-    "src",
-    "memory-store.js",
-  );
+function readIfFile(file) {
   try {
     if (!fs.existsSync(file)) return "";
-    const resolved = require.resolve(file);
-    delete require.cache[resolved];
-    const store = require(resolved);
-    if (typeof store.buildFullInjection !== "function") return "";
-    const root = store.defaultRoot();
-    return store.buildFullInjection(root, store.loadConfig(root)) || "";
+    return fs.readFileSync(file, "utf8").replace(/^\s+|\s+$/g, "");
+  } catch {
+    return "";
+  }
+}
+
+function profileBlock(title, body) {
+  if (!body) return "";
+  return [
+    "══════════════════════════════════════════════",
+    title,
+    "══════════════════════════════════════════════",
+    body,
+  ].join("\n");
+}
+
+function loadUserProfileBlock() {
+  const root = path.join(os.homedir(), ".pi", "agent", "user-profile");
+  try {
+    const raw = readIfFile(path.join(root, "config.json"));
+    const config = raw ? JSON.parse(raw) : {};
+    if (config.enabled === false) return "";
+    const parts = [];
+    if (config.userProfileEnabled !== false) {
+      parts.push(profileBlock("USER PROFILE (who the user is)", readIfFile(path.join(root, "USER.md"))));
+    }
+    if (config.memoryEnabled !== false) {
+      parts.push(profileBlock("MEMORY (agent notes)", readIfFile(path.join(root, "MEMORY.md"))));
+    }
+    return parts.filter(Boolean).join("\n\n");
   } catch {
     return "";
   }
