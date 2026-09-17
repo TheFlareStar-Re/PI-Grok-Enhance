@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "cn.star.grok-enhance",
   "name": "Grok Enhance",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Grok harness: execution discipline plus first-turn Grep/Glob (and peer tools) without ToolSearch.",
   "author": "TheFlareStar",
   "license": "MPL-2.0",

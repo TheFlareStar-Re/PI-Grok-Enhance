@@ -5,7 +5,7 @@ const os = require("node:os");
 const path = require("node:path");
 
 const PLUGIN_ID = "cn.star.grok-enhance";
-const PLUGIN_VERSION = "0.1.1";
+const PLUGIN_VERSION = "0.1.2";
 
 const DEFAULT_CONFIG = {
   enabled: true,

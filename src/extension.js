@@ -55,6 +55,41 @@ function profileBlock(title, body) {
   ].join("\n");
 }
 
+const MEMORY_NUDGE = [
+  "memory-nudge: v1",
+  "If the last few tool calls produced a durable fact, call the memory tool (target=user for identity/preferences, target=memory for environment/conventions).",
+  "Do not write those facts with MCP memory, create_entities, or other knowledge-graph tools.",
+  "Skip one-offs, secrets, and procedures (skills).",
+].join("\n");
+
+function takeMemoryNudge(root) {
+  const statePath = path.join(root, "nudge-state.json");
+  const filePath = path.join(root, "nudge.md");
+  const fromFile = readIfFile(filePath);
+  try {
+    fs.unlinkSync(filePath);
+  } catch {
+    /* missing */
+  }
+  let pending = false;
+  let state = {};
+  try {
+    const raw = readIfFile(statePath);
+    state = raw ? JSON.parse(raw) : {};
+    pending = state.pending === true;
+  } catch {
+    state = {};
+  }
+  if (!pending && !fromFile) return "";
+  state.pending = false;
+  try {
+    fs.writeFileSync(statePath, `${JSON.stringify(state, null, 2)}\n`, "utf8");
+  } catch {
+    /* ignore */
+  }
+  return fromFile || MEMORY_NUDGE;
+}
+
 function loadUserProfileBlock() {
   const root = path.join(os.homedir(), ".pi", "agent", "user-profile");
   try {
@@ -68,6 +103,8 @@ function loadUserProfileBlock() {
     if (config.memoryEnabled !== false) {
       parts.push(profileBlock("MEMORY (agent notes)", readIfFile(path.join(root, "MEMORY.md"))));
     }
+    const nudge = takeMemoryNudge(root);
+    if (nudge) parts.push(nudge);
     return parts.filter(Boolean).join("\n\n");
   } catch {
     return "";
