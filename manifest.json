@@ -1,0 +1,85 @@
+{
+  "schemaVersion": 1,
+  "id": "cn.star.grok-enhance",
+  "name": "Grok Enhance",
+  "version": "0.1.1",
+  "description": "Grok harness: execution discipline plus first-turn Grep/Glob (and peer tools) without ToolSearch.",
+  "author": "TheFlareStar",
+  "license": "MPL-2.0",
+  "i18n": {
+    "en": {
+      "name": "Grok Enhance",
+      "description": "Grok harness: execution discipline plus first-turn Grep/Glob (and peer tools) without ToolSearch.",
+      "safetyNotes": "Requests agent.extension (unsandboxed sidecar, same trust as the agent). Does not write skills or profile files. When installed it owns before_agent_start and inlines cn.star.user-profile injection so both blocks survive."
+    },
+    "zh-CN": {
+      "name": "Grok 增强",
+      "description": "给 Grok 加执行纪律，并在第一轮直接激活 Grep/Glob（以及已装的 memory / skill_manage），不必先 ToolSearch。",
+      "safetyNotes": "需要 agent.extension（sidecar 与 Agent 同信任级）。不写 skill、不写画像。安装后由本插件接管 before_agent_start，并内联用户画像注入，避免互相覆盖。"
+    }
+  },
+  "main": "main.js",
+  "contributes": {
+    "agentExtensions": ["src/extension.js"],
+    "commands": [
+      {
+        "id": "grok-enhance.status",
+        "title": "Grok Enhance: Status",
+        "keywords": ["grok", "enhance", "harness"]
+      }
+    ],
+    "settings": [
+      {
+        "key": "enabled",
+        "title": "Enable Grok Enhance",
+        "type": "boolean",
+        "default": true
+      },
+      {
+        "key": "disciplineEnabled",
+        "title": "Inject execution discipline",
+        "type": "boolean",
+        "default": true
+      },
+      {
+        "key": "disciplineOnAllModels",
+        "title": "Inject discipline for every model (not only Grok)",
+        "type": "boolean",
+        "default": false
+      },
+      {
+        "key": "preactivateTools",
+        "title": "Pre-activate Grep/Glob and peer tools each turn",
+        "type": "boolean",
+        "default": true
+      },
+      {
+        "key": "extraTools",
+        "title": "Tools to pre-activate (comma-separated exact names)",
+        "type": "string",
+        "default": "Grep,Glob,memory,skill_manage"
+      },
+      {
+        "key": "guardrailsEnabled",
+        "title": "Block identical failing / no-progress tool loops",
+        "type": "boolean",
+        "default": true
+      },
+      {
+        "key": "exactFailureBlockAfter",
+        "title": "Block after N identical failures",
+        "type": "number",
+        "default": 3
+      },
+      {
+        "key": "noProgressBlockAfter",
+        "title": "Block after N identical read-only results",
+        "type": "number",
+        "default": 3
+      }
+    ]
+  },
+  "permissions": ["agent.extension", "notify"],
+  "engines": { "piDesktop": ">=0.14.0" },
+  "activationEvents": ["onStartup"]
+}
