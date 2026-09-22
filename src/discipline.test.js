@@ -33,22 +33,12 @@ describe("discipline", () => {
     assert.equal(out.split("USER PROFILE (who the user is)").length - 1, 1);
   });
 
-  it("applies to grok by default", () => {
-    const pi = { getModel: () => ({ id: "grok-4.6", provider: "xai" }) };
-    assert.equal(discipline.shouldApplyDiscipline(pi, { disciplineEnabled: true }), true);
-  });
-
-  it("skips claude unless all-models", () => {
-    const pi = { getModel: () => ({ id: "claude-opus-4-6" }) };
-    assert.equal(discipline.shouldApplyDiscipline(pi, { disciplineEnabled: true }), false);
-    assert.equal(
-      discipline.shouldApplyDiscipline(pi, { disciplineEnabled: true, disciplineOnAllModels: true }),
-      true,
-    );
-  });
-
-  it("fail-open when model is unknown", () => {
-    assert.equal(discipline.shouldApplyDiscipline({}, { disciplineEnabled: true }), true);
+  it("applies only to a known Grok model", () => {
+    assert.equal(discipline.shouldApplyDiscipline({ id: "grok-4.6", provider: "xai" }, { disciplineEnabled: true }), true);
+    for (const model of [{ id: "claude-opus-4-6" }, {}, undefined]) {
+      assert.equal(discipline.shouldApplyDiscipline(model, { disciplineEnabled: true, disciplineOnAllModels: true }), false);
+    }
+    assert.equal(discipline.shouldApplyDiscipline({ id: "grok-4.6" }, { enabled: false }), false);
   });
 });
 

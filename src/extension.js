@@ -112,75 +112,85 @@ function loadUserProfileBlock() {
 }
 
 function grokEnhanceExtension(pi) {
+  const { isGrokModel } = require("./model.js");
   const guard = guardrails.createController(cfg.loadConfig(cfg.defaultRoot()));
+  const blockedCalls = new Set();
+  let scope;
 
-  try {
-    const root = cfg.defaultRoot();
-    const settings = cfg.loadConfig(root);
-    if (settings.enabled) cfg.stampBoot(root, cfg.PLUGIN_VERSION);
-    else cfg.clearBoot(root);
-  } catch {
-    /* ignore */
+  function reset() {
+    guard.reset();
+    blockedCalls.clear();
+    scope = undefined;
   }
 
-  function reloadGuard() {
+  // Context.model is the real sidecar API; ExtensionAPI has no getModel().
+  function settingsFor(ctx) {
     const settings = cfg.loadConfig(cfg.defaultRoot());
+    const model = ctx && ctx.model;
+    if (!settings.enabled || !isGrokModel(model)) {
+      reset();
+      return undefined;
+    }
+    const session = ctx.sessionManager && ctx.sessionManager.getSessionId();
+    const nextScope = JSON.stringify([session, model.id, model.provider]);
+    if (scope !== nextScope) reset();
+    scope = nextScope;
     guard.setConfig(settings);
+    if (!settings.guardrailsEnabled) guard.reset();
     return settings;
   }
 
-  pi.on("before_agent_start", async (event) => {
+  pi.on("session_shutdown", reset);
+  pi.on("model_select", reset);
+  pi.on("before_agent_start", async (event, ctx) => {
     try {
-      const root = cfg.defaultRoot();
-      const settings = reloadGuard();
-      if (!settings.enabled) {
-        cfg.clearBoot(root);
-        return undefined;
-      }
-      cfg.stampBoot(root, cfg.PLUGIN_VERSION);
-      guard.reset();
-
+      reset();
+      const settings = settingsFor(ctx);
+      if (!settings) return undefined;
+      cfg.stampBoot(cfg.defaultRoot(), cfg.PLUGIN_VERSION);
       if (settings.preactivateTools) {
         tools.unionActivate(pi, cfg.parseToolNames(settings.extraTools));
       }
-
       const base = typeof event.systemPrompt === "string" ? event.systemPrompt : "";
       const peer = loadUserProfileBlock();
-      const apply = discipline.shouldApplyDiscipline(pi, settings);
+      const apply = discipline.shouldApplyDiscipline(ctx.model, settings);
       return { systemPrompt: discipline.composePrompt(base, peer, apply) };
     } catch {
       return undefined;
     }
   });
 
-  pi.on("tool_call", (event) => {
+  pi.on("tool_call", (event, ctx) => {
     try {
-      const settings = cfg.loadConfig(cfg.defaultRoot());
-      if (!settings.enabled || settings.guardrailsEnabled === false) return undefined;
-      guard.setConfig(settings);
+      const settings = settingsFor(ctx);
+      if (!settings || !settings.guardrailsEnabled) return undefined;
       const input = event && (event.input !== undefined ? event.input : event.args);
       const decision = guard.before(event && event.toolName, input);
       if (decision && decision.action === "block") {
-        return { block: true, reason: decision.reason };
+        if (event.toolCallId) {
+          if (blockedCalls.size >= 256) blockedCalls.delete(blockedCalls.values().next().value);
+          blockedCalls.add(event.toolCallId);
+        }
+        return { block: true, reason: `[grok-enhance] ${decision.reason}` };
       }
     } catch {
-      /* ignore */
+      /* Do not break the host tool path if an optional guard fails. */
     }
     return undefined;
   });
 
-  pi.on("tool_result", (event) => {
+  pi.on("tool_result", (event, ctx) => {
     try {
-      const settings = cfg.loadConfig(cfg.defaultRoot());
-      if (!settings.enabled || settings.guardrailsEnabled === false) return undefined;
-      guard.setConfig(settings);
+      const settings = settingsFor(ctx);
+      if (!settings || !settings.guardrailsEnabled) return undefined;
+      if (event && blockedCalls.delete(event.toolCallId)) return undefined;
       const input = event && (event.input !== undefined ? event.input : event.args);
       const decision = guard.after(event && event.toolName, input, event);
       if (decision && decision.action === "warn") {
         return { content: guardrails.appendNotice(event && event.content, decision.message) };
       }
     } catch {
-      /* ignore */
+      /* Do not replace a real tool result with a guard error. */
     }
     return undefined;
   });

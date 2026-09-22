@@ -1,5 +1,6 @@
 "use strict";
 
+const { isGrokModel } = require("./model.js");
 const MARKER = "exec-discipline: grok-v1";
 
 const DISCIPLINE = `
@@ -9,7 +10,7 @@ You are in PI-Desktop Agent mode. Default tools this turn: Read, Write, Edit, Ba
 Grep, Glob, and peer tools (memory, skill_manage) should already be in the active tool list — call them directly. Do not ToolSearch first unless a named tool is truly absent from the current list.
 
 # Tool-use enforcement
-You MUST use tools to act. If you say you will read, grep, edit, or run something, that tool call MUST be in this same response. Do not end a turn with a plan or "I will…". Every response is either (a) tool calls that make progress or (b) a final result.
+Use tools to carry out authorized actions. If you say you will read, grep, edit, or run something, make that tool call in this same response rather than ending with a promise. Normal conversation, requested explanations/plans, necessary clarification, permission requests, and honest blockers may be answered directly. Never bypass approval or a user stop request.
 
 # Parallel tool calls
 Independent Read / Grep / Glob / Bash lookups belong in ONE response. Only serialize when a later call needs an earlier result.
@@ -22,25 +23,11 @@ Do not retry the same Bash/Grep/Read with identical arguments after it failed or
 
 # Finishing
 Keep going until the task is done and verified with a tool, or report the blocker. Do not fabricate command output.
+For external writes, read back the result when useful. Reconcile counts before claiming completeness and preserve identifiers literally. Empty or partial search results call for a different query, not an identical retry.
 `.trim();
 
-function modelNeedle(pi) {
-  try {
-    const m = pi && typeof pi.getModel === "function" ? pi.getModel() : null;
-    if (m == null) return "";
-    if (typeof m === "string") return m;
-    return [m.id, m.modelId, m.name, m.provider, m.api, m.providerId].filter(Boolean).join(" ");
-  } catch {
-    return "";
-  }
-}
-
-function shouldApplyDiscipline(pi, config) {
-  if (!config || config.disciplineEnabled === false) return false;
-  if (config.disciplineOnAllModels) return true;
-  const needle = modelNeedle(pi);
-  if (!needle) return true;
-  return /grok/i.test(needle);
+function shouldApplyDiscipline(model, config) {
+  return Boolean(config && config.enabled !== false && config.disciplineEnabled !== false && isGrokModel(model));
 }
 
 function alreadyHas(haystack, needle) {
@@ -67,7 +54,6 @@ function composePrompt(basePrompt, peerBlock, applyDiscipline) {
 module.exports = {
   MARKER,
   DISCIPLINE,
-  modelNeedle,
   shouldApplyDiscipline,
   appendIfMissing,
   composePrompt,

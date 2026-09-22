@@ -9,12 +9,14 @@ async function syncConfigFromSettings() {
   const next = cfg.saveConfig(root, {
     enabled: settings.enabled !== false,
     disciplineEnabled: settings.disciplineEnabled !== false,
-    disciplineOnAllModels: settings.disciplineOnAllModels === true,
     preactivateTools: settings.preactivateTools !== false,
     extraTools: settings.extraTools,
     guardrailsEnabled: settings.guardrailsEnabled !== false,
     exactFailureBlockAfter: settings.exactFailureBlockAfter,
     noProgressBlockAfter: settings.noProgressBlockAfter,
+    toolFailureBlockAfter: settings.toolFailureBlockAfter,
+    cycleBlockAfter: settings.cycleBlockAfter,
+    pollingTools: settings.pollingTools,
   });
   if (next.enabled) cfg.stampBoot(root, cfg.PLUGIN_VERSION);
   else cfg.clearBoot(root);
@@ -22,7 +24,7 @@ async function syncConfigFromSettings() {
 
 function statusText() {
   const settings = cfg.loadConfig(cfg.defaultRoot());
-  return `Grok Enhance ${cfg.PLUGIN_VERSION} · ${settings.enabled ? "on" : "off"} · discipline ${
+  return `Grok Enhance ${cfg.PLUGIN_VERSION} · Grok only · ${settings.enabled ? "on" : "off"} · discipline ${
     settings.disciplineEnabled ? "on" : "off"
   } · guardrails ${settings.guardrailsEnabled ? `fail≥${settings.exactFailureBlockAfter}` : "off"} · preactivate ${
     settings.preactivateTools ? settings.extraTools : "off"

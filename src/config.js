@@ -5,12 +5,11 @@ const os = require("node:os");
 const path = require("node:path");
 
 const PLUGIN_ID = "cn.star.grok-enhance";
-const PLUGIN_VERSION = "0.1.2";
+const PLUGIN_VERSION = "0.2.0";
 
 const DEFAULT_CONFIG = {
   enabled: true,
   disciplineEnabled: true,
-  disciplineOnAllModels: false,
   preactivateTools: true,
   extraTools: "Grep,Glob,memory,skill_manage",
   guardrailsEnabled: true,
@@ -18,6 +17,11 @@ const DEFAULT_CONFIG = {
   exactFailureBlockAfter: 3,
   noProgressWarnAfter: 2,
   noProgressBlockAfter: 3,
+  toolFailureWarnAfter: 3,
+  toolFailureBlockAfter: 8,
+  cycleWarnAfter: 2,
+  cycleBlockAfter: 3,
+  pollingTools: "TaskWait,TaskList",
 };
 
 function clampInt(value, fallback, min, max) {
@@ -55,7 +59,6 @@ function clampConfig(raw) {
   return {
     enabled: src.enabled !== false,
     disciplineEnabled: src.disciplineEnabled !== false,
-    disciplineOnAllModels: src.disciplineOnAllModels === true,
     preactivateTools: src.preactivateTools !== false,
     extraTools:
       typeof src.extraTools === "string" && src.extraTools.trim()
@@ -66,6 +69,11 @@ function clampConfig(raw) {
     exactFailureBlockAfter: Math.max(exactWarn, exactBlock),
     noProgressWarnAfter: npWarn,
     noProgressBlockAfter: Math.max(npWarn, npBlock),
+    toolFailureWarnAfter: 3,
+    toolFailureBlockAfter: clampInt(src.toolFailureBlockAfter, DEFAULT_CONFIG.toolFailureBlockAfter, 3, 20),
+    cycleWarnAfter: 2,
+    cycleBlockAfter: clampInt(src.cycleBlockAfter, DEFAULT_CONFIG.cycleBlockAfter, 2, 8),
+    pollingTools: typeof src.pollingTools === "string" ? src.pollingTools : DEFAULT_CONFIG.pollingTools,
   };
 }
 
